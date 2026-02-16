@@ -7,6 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+<script type="module">
+  import Groq from "https://esm.run/groq-sdk";
+  window.Groq = Groq;
+</script>
 <style>
 /* ═══════════════════════════════════════
    CSS VARIABLES — Night Cricket Theme
@@ -243,14 +248,24 @@ h1,h2,h3,h4{font-family:var(--fh);line-height:1.15;letter-spacing:.02em}
    (See README.md for step-by-step setup instructions)
 ═══════════════════════════════════════════════════════ */
 const CONFIG = {
-  supabaseUrl:  "YOUR_SUPABASE_URL",   // e.g. https://xyzxyz.supabase.co
-  supabaseKey:  "YOUR_SUPABASE_ANON_KEY",
-  docstrangeKey:"510ce913-0b3d-11f1-96fa-56d39eb2c6a9",
-  adminPass:    "cricket2024"
+  supabaseUrl:  "https://jeanvxfyqztuiyeqtyzh.supabase.co",
+  supabaseKey:  "sb_publishable_QDbEbRxszCMK_bRpfKhjmQ_tzFKjXrK",
+  adminPass:    "cricket1982"
 };
 // ─────────────────────────────────────────────────────
 
 const IS_CONFIGURED = CONFIG.supabaseUrl !== "YOUR_SUPABASE_URL";
+
+// Function to save the key
+const saveGroqKey = (key) => {
+  localStorage.setItem('GROQ_API_KEY', key);
+  alert("Key saved locally!");
+};
+
+// Function to get the key
+const getGroqKey = () => {
+  return localStorage.getItem('GROQ_API_KEY');
+};
 
 /* ═══════════════════════════════════════════════════════
    SUPABASE REST HELPERS
@@ -632,17 +647,47 @@ window.plSearch=v=>{S.search=v;renderMain();};
 /* ═══════════════════════════════════════════════════════
    UPLOAD PAGE
 ═══════════════════════════════════════════════════════ */
-function renderUpload(){
-  return `<div class="page">
-    <div class="sec-title">📤 Upload Match Scorecard</div>
-    <p class="sec-sub">Upload a PDF scorecard — DocStrange AI will extract and structure the data, then you review before saving</p>
-    <div class="uz" id="uzone" onclick="document.getElementById('pdf-input').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
-      <span class="u-icon">🏏</span>
-      <div class="u-title">Drop scorecard PDF here</div>
-      <div class="u-hint">or click to browse &nbsp;·&nbsp; Powered by DocStrange AI extraction</div>
-    </div>
-  </div>`;
+/* ═══════════════════════════════════════════════════════
+   UPLOAD PAGE (Updated with Local API Settings)
+═══════════════════════════════════════════════════════ */
+function renderUpload() {
+  const existingKey = getGroqKey();
+  const statusHtml = existingKey 
+    ? `<div id="keyStatus" style="margin-top: 10px; font-size: 0.75rem; color: var(--green);">⭐ Groq API Key is active.</div>`
+    : `<div id="keyStatus" style="margin-top: 10px; font-size: 0.75rem; color: var(--muted);">No key found. Please add one to enable AI extraction.</div>`;
+
+  return `
+    <div class="page">
+      <div class="sec-title">📤 Upload Match Scorecard</div>
+      <p class="sec-sub">Upload a PDF scorecard — AI will extract the data using your local API key.</p>
+
+      <div class="settings-box" style="margin-bottom: 24px; padding: 20px; background: var(--bg3); border-radius: 12px; border: 1px solid var(--oBorder);">
+        <h3 style="font-family: 'Oswald'; color: var(--orange); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+          ⚙️ API Configuration
+        </h3>
+        <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 15px; line-height: 1.4;">
+          To extract data, enter your <a href="https://console.groq.com/keys" target="_blank" style="color: var(--orange);">Groq API Key</a>. 
+          It is stored <strong>only</strong> in your browser and never reaches GitHub.
+        </p>
+        <div style="display: flex; gap: 10px;">
+          <input type="password" id="groqKeyInput" placeholder="Paste gsk_..." 
+                 style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--bg4); background: var(--bg); color: white; outline: none;">
+          <button onclick="saveGroqKey(document.getElementById('groqKeyInput').value)" 
+                  class="btn btn-orange" style="white-space: nowrap;">
+            Save Key
+          </button>
+        </div>
+        ${statusHtml}
+      </div>
+
+      <div class="uz" id="uzone" onclick="document.getElementById('pdf-input').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+        <span class="u-icon">🏏</span>
+        <div class="u-title">Drop scorecard PDF here</div>
+        <div class="u-hint">or click to browse &nbsp;·&nbsp; Data extracted locally via Groq</div>
+      </div>
+    </div>`;
 }
+
 window.handleDrop=e=>{e.preventDefault();document.getElementById("uzone")?.classList.remove("drag");const f=e.dataTransfer?.files?.[0];if(f)handlePdf(f);};
 document.getElementById("pdf-input").addEventListener("change",e=>{const f=e.target.files?.[0];if(f)handlePdf(f);e.target.value="";});
 
@@ -670,122 +715,50 @@ async function handlePdf(file){
     setTimeout(()=>toast("❌ Extraction failed: "+e.message),100);
   }
 }
+async function extractAndParseWithDocStrange(file) {
+  const userApiKey = getGroqKey();
 
-async function extractAndParseWithDocStrange(file){
-  const instructions = `
-You are a cricket scorecard data extractor. Extract all data from this cricket scorecard PDF and return it as a single valid JSON object. Return ONLY the raw JSON — no markdown fences, no explanation, no extra text.
-
-Use exactly this JSON structure:
-{
-  "team1": "first team name (batting team in first innings)",
-  "team2": "second team name (batting team in second innings)",
-  "result": "full match result string as shown e.g. Nawin won by 5 runs",
-  "winner": "name of winning team, or tie, or no result",
-  "date": "",
-  "venue": "",
-  "innings": [
-    {
-      "team": "team name for this innings",
-      "total": 65,
-      "wickets": 4,
-      "overs": "7.0",
-      "extras": {
-        "wides": 4,
-        "noballs": 2,
-        "byes": 0,
-        "legbyes": 0,
-        "total": 6
-      },
-      "batting": [
-        {
-          "name": "batsman full name",
-          "runs": 7,
-          "balls": 4,
-          "fours": 1,
-          "sixes": 0,
-          "dismissalText": "b Jeevanth",
-          "dismissalType": "bowled",
-          "bowler": "Jeevanth",
-          "fielder": null
-        }
-      ],
-      "bowling": [
-        {
-          "name": "bowler full name",
-          "overs": "1.0",
-          "maidens": 0,
-          "runs": 6,
-          "wickets": 0
-        }
-      ],
-      "fallOfWickets": [
-        {
-          "batsman": "player name",
-          "score": "12/1",
-          "over": "1.3"
-        }
-      ]
-    }
-  ]
-}
-
-Rules for dismissalType field — use exactly one of these string values:
-- "bowled" when dismissal text starts with "b " e.g. "b Jeevanth" — set bowler to the name after b
-- "caught" when dismissal text starts with "c " e.g. "c Sanjay b Nawin" — set fielder to catcher name, bowler to name after b
-- "caught" also for "c & b PlayerName" or "c and b PlayerName" — set both fielder and bowler to same name
-- "stumped" when dismissal text starts with "st " e.g. "st Keeper b Bowler" — set fielder to keeper, bowler to name after b
-- "run_out" when dismissal contains "run out" — set fielder to name inside parentheses if present, bowler to null
-- "lbw" when dismissal contains "lbw" — set bowler to name after b if present
-- "hit_wicket" when dismissal contains "hit wicket"
-- "not_out" when "not out" or "did not bat"
-
-For overs field always use string format like "7.0" or "1.3" (balls as single digit after dot, not decimals).
-All numeric fields like runs, balls, fours, sixes, total, wickets must be integers not strings.
-Extract every single batsman and bowler listed in the scorecard — do not skip any rows.
-`.trim();
-
-  const form = new FormData();
-  form.append("file", file);
-  form.append("output_format", "json");
-  form.append("custom_instructions", instructions);
-
-  const r = await fetch("https://extraction-api.nanonets.com/api/v1/extract/sync", {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${CONFIG.docstrangeKey}` },
-    body: form
-  });
-
-  if (!r.ok) {
-    const err = await r.text();
-    throw new Error(`DocStrange error ${r.status}: ${err}`);
+  if (!userApiKey) {
+    throw new Error("Please set your Groq API Key in the settings box above first!");
   }
 
-  const resp = await r.json();
+  // --- PART A: Local PDF Text Extraction ---
+  const arrayBuffer = await file.arrayBuffer();
+  const pdfjsLib = window['pdfjs-dist/build/pdf'];
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+  
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let rawText = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    rawText += content.items.map(item => item.str).join(" ") + "\n";
+  }
 
-  // DocStrange wraps the AI output — dig out the JSON string from various possible response shapes
-  let raw = resp?.result?.extracted_data
-    || resp?.result?.json
-    || resp?.result?.content
-    || resp?.result?.text
-    || resp?.extracted_data
-    || resp?.json
-    || resp?.content
-    || resp?.text
-    || "";
+  // --- PART B: Call Groq directly using the User's Key ---
+  const groq = new window.Groq({ 
+    apiKey: userApiKey,
+    dangerouslyAllowBrowser: true 
+  });
 
-  // If it came back as an already-parsed object, use it directly
-  if (typeof raw === "object" && raw !== null) return raw;
+  const instructions = `
+    You are a cricket data specialist. Convert the raw text from a scorecard PDF into a single valid JSON object.
+    JSON STRUCTURE: { "team1": "", "team2": "", "result": "", "winner": "", "date": "", "venue": "", "innings": [{ "team": "", "total": 0, "wickets": 0, "overs": "", "extras": {"wides": 0, "noballs": 0, "byes": 0, "legbyes": 0, "total": 0}, "batting": [{"name": "", "runs": 0, "balls": 0, "fours": 0, "sixes": 0, "dismissalText": ""}], "bowling": [{"name": "", "overs": "", "maidens": 0, "runs": 0, "wickets": 0}] }] }
+    RULES: Return ONLY the JSON object. No markdown.
+  `;
 
-  // Otherwise parse the string, stripping any accidental markdown fences
-  const clean = String(raw).replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+  const completion = await groq.chat.completions.create({
+    messages: [
+      { role: "system", content: instructions },
+      { role: "user", content: "RAW SCORECARD TEXT:\n" + rawText }
+    ],
+    model: "llama-3.3-70b-versatile",
+    temperature: 0.1,
+    response_format: { type: "json_object" }
+  });
 
-  // Find the outermost JSON object in the string in case there is surrounding text
-  const start = clean.indexOf("{");
-  const end   = clean.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("DocStrange did not return parseable JSON. Try again or check your API key.");
-  return JSON.parse(clean.slice(start, end + 1));
+  return JSON.parse(completion.choices[0].message.content);
 }
-
 /* ═══════════════════════════════════════════════════════
    REVIEW MODAL
 ═══════════════════════════════════════════════════════ */
