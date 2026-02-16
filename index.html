@@ -243,8 +243,8 @@ h1,h2,h3,h4{font-family:var(--fh);line-height:1.15;letter-spacing:.02em}
    (See README.md for step-by-step setup instructions)
 ═══════════════════════════════════════════════════════ */
 const CONFIG = {
-  supabaseUrl:  "https://jeanvxfyqztuiyeqtyzh.supabase.co",   // e.g. https://xyzxyz.supabase.co
-  supabaseKey:  "sb_publishable_QDbEbRxszCMK_bRpfKhjmQ_tzFKjXrK",
+  supabaseUrl:  "YOUR_SUPABASE_URL",   // e.g. https://xyzxyz.supabase.co
+  supabaseKey:  "YOUR_SUPABASE_ANON_KEY",
   docstrangeKey:"510ce913-0b3d-11f1-96fa-56d39eb2c6a9",
   adminPass:    "cricket2024"
 };
@@ -635,7 +635,7 @@ window.plSearch=v=>{S.search=v;renderMain();};
 function renderUpload(){
   return `<div class="page">
     <div class="sec-title">📤 Upload Match Scorecard</div>
-    <p class="sec-sub">Upload a PDF scorecard — DocStrange AI will extract the data, then you review before saving</p>
+    <p class="sec-sub">Upload a PDF scorecard — DocStrange AI will extract and structure the data, then you review before saving</p>
     <div class="uz" id="uzone" onclick="document.getElementById('pdf-input').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
       <span class="u-icon">🏏</span>
       <div class="u-title">Drop scorecard PDF here</div>
@@ -654,15 +654,15 @@ async function handlePdf(file){
   document.getElementById("main").innerHTML=`<div class="page" style="text-align:center;padding:80px 20px">
     <div style="font-size:3rem;margin-bottom:20px">📄</div>
     <div class="si" style="width:40px;height:40px;border-width:3px;margin:0 auto 18px"></div>
-    <div class="tm" id="pstatus">Uploading to DocStrange…</div>
+    <div class="tm" id="pstatus">Sending to DocStrange AI…</div>
     <div style="max-width:280px;margin:14px auto"><div class="prog"><div class="prog-fill" id="pbar" style="width:10%"></div></div></div>
   </div>`;
   const setP=(v,s)=>{const pb=document.getElementById("pbar"),ps=document.getElementById("pstatus");if(pb)pb.style.width=v+"%";if(ps)ps.textContent=s;};
   try{
-    setP(20,"Extracting text with DocStrange AI…");
-    const text=await extractWithDocStrange(file);
-    setP(55,"Parsing scorecard structure with Claude AI…");
-    const data=await parseWithClaude(text);
+    setP(20,"Uploading PDF to DocStrange…");
+    await new Promise(r=>setTimeout(r,300));
+    setP(50,"DocStrange AI is reading & structuring the scorecard…");
+    const data=await extractAndParseWithDocStrange(file);
     setP(100,"Done! Opening review…");
     setTimeout(()=>showReviewModal(data),350);
   }catch(e){
@@ -671,68 +671,119 @@ async function handlePdf(file){
   }
 }
 
-async function extractWithDocStrange(file){
-  const form=new FormData();
-  form.append("file",file);
-  form.append("output_format","markdown");
-  const r=await fetch("https://extraction-api.nanonets.com/api/v1/extract/sync",{
-    method:"POST",
-    headers:{"Authorization":`Bearer ${CONFIG.docstrangeKey}`},
-    body:form
-  });
-  if(!r.ok){
-    const err=await r.text();
-    throw new Error(`DocStrange error ${r.status}: ${err}`);
-  }
-  const data=await r.json();
-  // DocStrange returns result with markdown field
-  return data.result?.markdown || data.markdown || data.text || JSON.stringify(data);
-}
+async function extractAndParseWithDocStrange(file){
+  const instructions = `
+You are a cricket scorecard data extractor. Extract all data from this cricket scorecard PDF and return it as a single valid JSON object. Return ONLY the raw JSON — no markdown fences, no explanation, no extra text.
 
-async function parseWithClaude(text){
-  const prompt=`You are a cricket scorecard parser. Parse the following scorecard and return ONLY valid JSON, no markdown fences, no explanation.
-
-Return this exact structure:
+Use exactly this JSON structure:
 {
-  "team1": "TeamName",
-  "team2": "TeamName",
-  "result": "full result e.g. Nawin won by 5 runs",
-  "winner": "winning team name or 'tie'",
+  "team1": "first team name (batting team in first innings)",
+  "team2": "second team name (batting team in second innings)",
+  "result": "full match result string as shown e.g. Nawin won by 5 runs",
+  "winner": "name of winning team, or tie, or no result",
   "date": "",
   "venue": "",
   "innings": [
     {
-      "team": "TeamName",
+      "team": "team name for this innings",
       "total": 65,
       "wickets": 4,
       "overs": "7.0",
-      "extras": {"wides":4,"noballs":2,"byes":0,"legbyes":0,"total":6},
+      "extras": {
+        "wides": 4,
+        "noballs": 2,
+        "byes": 0,
+        "legbyes": 0,
+        "total": 6
+      },
       "batting": [
-        {"name":"PlayerName","runs":7,"balls":4,"fours":1,"sixes":0,
-         "dismissalText":"b Jeevanth","dismissalType":"bowled","bowler":"Jeevanth","fielder":null}
+        {
+          "name": "batsman full name",
+          "runs": 7,
+          "balls": 4,
+          "fours": 1,
+          "sixes": 0,
+          "dismissalText": "b Jeevanth",
+          "dismissalType": "bowled",
+          "bowler": "Jeevanth",
+          "fielder": null
+        }
       ],
       "bowling": [
-        {"name":"BowlerName","overs":"1.0","maidens":0,"runs":6,"wickets":0}
+        {
+          "name": "bowler full name",
+          "overs": "1.0",
+          "maidens": 0,
+          "runs": 6,
+          "wickets": 0
+        }
       ],
       "fallOfWickets": [
-        {"batsman":"PlayerName","score":"12/1","over":"1.3"}
+        {
+          "batsman": "player name",
+          "score": "12/1",
+          "over": "1.3"
+        }
       ]
     }
   ]
 }
 
-dismissalType values: "bowled","caught","stumped","run_out","lbw","hit_wicket","not_out"
-"b X" → bowled, bowler=X | "c F b B" → caught | "st K b B" → stumped | "not out" → not_out | "run out (F)" → run_out
+Rules for dismissalType field — use exactly one of these string values:
+- "bowled" when dismissal text starts with "b " e.g. "b Jeevanth" — set bowler to the name after b
+- "caught" when dismissal text starts with "c " e.g. "c Sanjay b Nawin" — set fielder to catcher name, bowler to name after b
+- "caught" also for "c & b PlayerName" or "c and b PlayerName" — set both fielder and bowler to same name
+- "stumped" when dismissal text starts with "st " e.g. "st Keeper b Bowler" — set fielder to keeper, bowler to name after b
+- "run_out" when dismissal contains "run out" — set fielder to name inside parentheses if present, bowler to null
+- "lbw" when dismissal contains "lbw" — set bowler to name after b if present
+- "hit_wicket" when dismissal contains "hit wicket"
+- "not_out" when "not out" or "did not bat"
 
-SCORECARD:
-${text}`;
-  const r=await fetch("https://api.anthropic.com/v1/messages",{
-    method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,messages:[{role:"user",content:prompt}]})
+For overs field always use string format like "7.0" or "1.3" (balls as single digit after dot, not decimals).
+All numeric fields like runs, balls, fours, sixes, total, wickets must be integers not strings.
+Extract every single batsman and bowler listed in the scorecard — do not skip any rows.
+`.trim();
+
+  const form = new FormData();
+  form.append("file", file);
+  form.append("output_format", "json");
+  form.append("custom_instructions", instructions);
+
+  const r = await fetch("https://extraction-api.nanonets.com/api/v1/extract/sync", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${CONFIG.docstrangeKey}` },
+    body: form
   });
-  const d=await r.json();
-  const raw=d.content?.map(c=>c.text||"").join("")||"";
-  return JSON.parse(raw.replace(/```json\s*/g,"").replace(/```\s*/g,"").trim());
+
+  if (!r.ok) {
+    const err = await r.text();
+    throw new Error(`DocStrange error ${r.status}: ${err}`);
+  }
+
+  const resp = await r.json();
+
+  // DocStrange wraps the AI output — dig out the JSON string from various possible response shapes
+  let raw = resp?.result?.extracted_data
+    || resp?.result?.json
+    || resp?.result?.content
+    || resp?.result?.text
+    || resp?.extracted_data
+    || resp?.json
+    || resp?.content
+    || resp?.text
+    || "";
+
+  // If it came back as an already-parsed object, use it directly
+  if (typeof raw === "object" && raw !== null) return raw;
+
+  // Otherwise parse the string, stripping any accidental markdown fences
+  const clean = String(raw).replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+
+  // Find the outermost JSON object in the string in case there is surrounding text
+  const start = clean.indexOf("{");
+  const end   = clean.lastIndexOf("}");
+  if (start === -1 || end === -1) throw new Error("DocStrange did not return parseable JSON. Try again or check your API key.");
+  return JSON.parse(clean.slice(start, end + 1));
 }
 
 /* ═══════════════════════════════════════════════════════
