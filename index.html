@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>The Crease · Cricket Stats</title>
+<title>The CricStat · Cricket Stats</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
@@ -232,7 +232,7 @@ h1,h2,h3,h4{font-family:var(--fh);line-height:1.15;letter-spacing:.02em}
 <nav class="nav" id="nav">
   <button class="logo" onclick="nav('home')">
     <span class="logo-icon">🏏</span>
-    <span class="logo-text">The Crease</span>
+    <span class="logo-text"><span style="color:white">Cric</span>Stat</span>
   </button>
   <div class="nav-links" id="nav-links"></div>
 </nav>
@@ -469,9 +469,9 @@ function renderNav(){
   document.getElementById("nav-links").innerHTML=`
     <button class="nav-btn ${p==="home"?"active":""}" onclick="nav('home')">Home</button>
     <button class="nav-btn ${p==="matches"?"active":""}" onclick="nav('matches')">Matches</button>
-    <button class="nav-btn ${p==="players"?"active":""}" onclick="nav('players')">Players</button>
+    <button class="nav-btn ${p==="players"?"active":""}" onclick="nav('players')">Stats</button>
     ${a?`<button class="nav-btn ${p==="upload"?"active":""}" onclick="nav('upload')">Upload</button>`:""}
-    ${a?`<button class="nav-btn danger" onclick="doLogout()">🔓 Logout</button>`:`<button class="nav-btn cta" onclick="showLoginModal()">Admin</button>`}
+    ${a?`<button class="nav-btn danger" onclick="doLogout()">🔓 Logout</button>`:`<button class="nav-btn cta" onclick="showLoginModal()">Admin Login</button>`}
   `;
 }
 
@@ -519,7 +519,7 @@ function renderHome(){
   return `
     <div class="hero">
       <div class="hero-glow"></div><div class="hero-ring"></div>
-      <div class="hero-title">THE&nbsp;<span class="acc">CREASE</span></div>
+      <div class="hero-title">CRIC&nbsp;<span class="acc">STAT</span></div>
       <div class="hero-sub">Local cricket. Proper stats. Every match, every run, every wicket.</div>
       <div class="hero-btns">
         <button class="btn btn-orange" onclick="nav('matches')">View Matches</button>
@@ -528,10 +528,11 @@ function renderHome(){
     </div>
     <div class="page" style="padding-top:32px">
       <div class="sg">
-        <div class="sc"><div class="sn">${S.matches.length}</div><div class="sl">Matches</div></div>
-        <div class="sc"><div class="sn">${npl}</div><div class="sl">Players</div></div>
-        <div class="sc"><div class="sn">${topBat?.bat_runs||"—"}</div><div class="sl">Top Runs${topBat?" · "+esc(topBat.name):""}</div></div>
-        <div class="sc"><div class="sn">${topBowl?.bowl_wkts||"—"}</div><div class="sl">Top Wickets${topBowl?" · "+esc(topBowl.name):""}</div></div>
+        <div class="sc" onclick="nav('players')" style="cursor: pointer; "><div class="sn">${S.matches.length}</div><div class="sl">Matches</div></div>
+        <div class="sc" onclick="nav('players')" style="cursor: pointer; "><div class="sn">${npl}</div><div class="sl">Players</div></div>
+        <div class="sc" onclick="nav('players')" style="cursor: pointer; "><div class="sn">${topBat?.bat_runs||"—"}</div><div class="sl">Top Runs${topBat?" · "+esc(topBat.name):""}</div></div>
+        <div class="sc" onclick="nav('players')" style="cursor: pointer; "><div class="sn">${topBowl?.bowl_wkts||"—"}</div><div class="sl">Top Wickets${topBowl?" · "+esc(topBowl.name):""}</div></div>
+        <div class="sc" onclick="nav('players')" style="cursor: pointer; "><div class="sn">More stats</div><div class="sl"></div></div>  
       </div>
       ${recent.length?`<div class="sec-title">🕐 Recent Matches</div><div class="ml mt3">${recent.map(m=>matchCardHtml(m,false)).join("")}</div>`:""}
     </div>`;
@@ -892,7 +893,6 @@ function showLoginModal(){
             <button class="btn btn-orange" onclick="doLogin()">Login</button>
             <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
           </div>
-          <div class="tm txs mt3">Default: cricket2024</div>
         </div>
       </div>
     </div>`;
