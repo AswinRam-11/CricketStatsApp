@@ -344,46 +344,98 @@ const DC={bowled:"dt-b",caught:"dt-c",stumped:"dt-st",run_out:"dt-ro",lbw:"dt-lb
    COMPUTE STATS
 ═══════════════════════════════════════════════════════ */
 function computeStats(matches) {
-  const pl={};
-  const g=name=>{
-    if(!pl[name])pl[name]={name,mids:new Set(),
-      bi:0,bno:0,br:0,bb:0,b4:0,b6:0,bhs:0,bhsno:false,
-      wbl:0,wm:0,wr:0,ww:0,fc:0,fro:0,fst:0,
-      wt:{bowled:0,caught:0,lbw:0,stumped:0,hit_wicket:0}};
+  const pl = {};
+  const g = name => {
+    if (!pl[name]) pl[name] = {
+      name, mids: new Set(),
+      bi: 0, bno: 0, br: 0, bb: 0, b4: 0, b6: 0, bhs: 0, bhsno: false,
+      wbl: 0, wm: 0, wr: 0, ww: 0, fc: 0, fro: 0, fst: 0,
+      wt: { bowled: 0, caught: 0, lbw: 0, stumped: 0, hit_wicket: 0 }
+    };
     return pl[name];
   };
-  for(const m of matches){
-    for(const inn of(m.innings||[])){
-      for(const b of(inn.batting||[])){
-        if(!b.name)continue;const p=g(b.name);p.mids.add(m.id);
-        const io=b.dismissalType&&b.dismissalType!=="not_out";
-        p.bi++;if(!io)p.bno++;p.br+=+b.runs||0;p.bb+=+b.balls||0;p.b4+=+b.fours||0;p.b6+=+b.sixes||0;
-        if((+b.runs||0)>p.bhs){p.bhs=+b.runs||0;p.bhsno=!io;}
+
+  for (const m of matches) {
+    for (const inn of (m.innings || [])) {
+      // 1. Batting Stats
+      for (const b of (inn.batting || [])) {
+        if (!b.name) continue;
+
+        // Only count as an innings if they actually faced a ball, scored a run, 
+        // or have a dismissal that isn't "did not bat"
+        const dText = (b.dismissalText || "").toLowerCase();
+        const hasBatted = (b.balls > 0 || b.runs > 0 || (dText !== "" && dText !== "did not bat"));
+
+        if (hasBatted) {
+          const p = g(b.name);
+          p.mids.add(m.id);
+
+          // Correct "Not Out" check: 
+          // A player is NOT OUT if type is explicitly 'not_out' OR if dismissal text is 'not out'
+          const isNotOut = (b.dismissalType === "not_out" || dText === "not out" || dText === "retired hurt");
+
+          p.bi++; // Increment Innings
+          if (isNotOut) p.bno++; // Increment Not Out
+
+          p.br += +b.runs || 0;
+          p.bb += +b.balls || 0;
+          p.b4 += +b.fours || 0;
+          p.b6 += +b.sixes || 0;
+
+          // High Score Logic
+          const currentRuns = +b.runs || 0;
+          if (currentRuns > p.bhs) {
+            p.bhs = currentRuns;
+            p.bhsno = isNotOut;
+          } else if (currentRuns === p.bhs && isNotOut) {
+            // If scores are equal, favor the Not Out record for the "*" display
+            p.bhsno = true;
+          }
+        }
       }
-      for(const bw of(inn.bowling||[])){
-        if(!bw.name)continue;const p=g(bw.name);p.mids.add(m.id);
-        p.wbl+=Math.round(ovDec(bw.overs)*6);p.wm+=+bw.maidens||0;p.wr+=+bw.runs||0;p.ww+=+bw.wickets||0;
+
+      // 2. Bowling Stats
+      for (const bw of (inn.bowling || [])) {
+        if (!bw.name) continue;
+        const p = g(bw.name);
+        p.mids.add(m.id);
+        p.wbl += Math.round(ovDec(bw.overs) * 6);
+        p.wm += +bw.maidens || 0;
+        p.wr += +bw.runs || 0;
+        p.ww += +bw.wickets || 0;
       }
-      for(const b of(inn.batting||[])){
-        const{type,fielder,bowler}=parseDism(b.dismissalText||"");
-        if(type==="caught"&&fielder){const p=g(fielder);p.mids.add(m.id);p.fc++;}
-        if(type==="stumped"&&fielder){const p=g(fielder);p.mids.add(m.id);p.fst++;}
-        if(type==="run_out"&&fielder){const p=g(fielder);p.mids.add(m.id);p.fro++;}
-        if(bowler&&["bowled","caught","lbw","stumped","hit_wicket"].includes(type)){
-          const p=g(bowler);p.mids.add(m.id);if(p.wt[type]!==undefined)p.wt[type]++;
+
+      // 3. Fielding & Wicket Types
+      for (const b of (inn.batting || [])) {
+        const { type, fielder, bowler } = parseDism(b.dismissalText || "");
+        if (type === "caught" && fielder) { const p = g(fielder); p.mids.add(m.id); p.fc++; }
+        if (type === "stumped" && fielder) { const p = g(fielder); p.mids.add(m.id); p.fst++; }
+        if (type === "run_out" && fielder) { const p = g(fielder); p.mids.add(m.id); p.fro++; }
+        if (bowler && ["bowled", "caught", "lbw", "stumped", "hit_wicket"].includes(type)) {
+          const p = g(bowler);
+          p.mids.add(m.id);
+          if (p.wt[type] !== undefined) p.wt[type]++;
         }
       }
     }
   }
-  return Object.values(pl).map(p=>{
-    const od=p.wbl/6,dis=p.bi-p.bno;
-    return{...p,matches:p.mids.size,
-      bat_runs:p.br,bat_balls:p.bb,bat_innings:p.bi,bat_notout:p.bno,bat_4s:p.b4,bat_6s:p.b6,bat_hs:p.bhs,bat_hs_no:p.bhsno,
-      bowl_wkts:p.ww,bowl_runs:p.wr,bowl_maidens:p.wm,bowl_balls:p.wbl,
-      field_catches:p.fc,field_runouts:p.fro,field_stumpings:p.fst,wkt_types:p.wt,
-      bat_avg:dis>0?p.br/dis:null,bat_sr:p.bb>0?(p.br/p.bb)*100:null,
-      bowl_overs:decOv(od),bowl_econ:od>0?p.wr/od:null,
-      bowl_avg:p.ww>0?p.wr/p.ww:null,bowl_sr:p.ww>0?p.wbl/p.ww:null
+
+  return Object.values(pl).map(p => {
+    const od = p.wbl / 6;
+    const dis = p.bi - p.bno; // Total innings minus times remained not out = number of times out
+    return {
+      ...p,
+      matches: p.mids.size,
+      bat_runs: p.br, bat_balls: p.bb, bat_innings: p.bi, bat_notout: p.bno,
+      bat_4s: p.b4, bat_6s: p.b6, bat_hs: p.bhs, bat_hs_no: p.bhsno,
+      bowl_wkts: p.ww, bowl_runs: p.wr, bowl_maidens: p.wm, bowl_balls: p.wbl,
+      field_catches: p.fc, field_runouts: p.fro, field_stumpings: p.fst, wkt_types: p.wt,
+      bat_avg: dis > 0 ? p.br / dis : (p.bi > 0 ? p.br : null), // Average is Runs / Times Out
+      bat_sr: p.bb > 0 ? (p.br / p.bb) * 100 : null,
+      bowl_overs: decOv(od),
+      bowl_econ: od > 0 ? p.wr / od : null,
+      bowl_avg: p.ww > 0 ? p.wr / p.ww : null,
+      bowl_sr: p.ww > 0 ? p.wbl / p.ww : null
     };
   });
 }
