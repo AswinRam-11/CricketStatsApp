@@ -196,16 +196,16 @@ h1,h2,h3,h4{font-family:var(--fh);line-height:1.15;letter-spacing:.02em}
 }
 
 /* Subtle indicator for mobile users that they can scroll */
-@media (max-width: 700px) {
-  .tw::after {
-    content: "Scroll ➔";
-    position: absolute;
-    right: 10px;
-    bottom: 5px;
-    font-size: 10px;
-    color: var(--muted);
-    pointer-events: none;
-    opacity: 0.6;
+@media (max-width: 768px) {
+  .card::before {
+    content: "Swipe horizontally to see more stats ➔";
+    display: block;
+    text-align: right;
+    font-size: 11px;
+    color: var(--to); /* Using your highlight color */
+    margin-top: 8px;
+    font-weight: 500;
+    opacity: 0.8;
   }
 }
 
@@ -717,31 +717,44 @@ function renderPlayers(){
   
   const filtered = all.filter(p => p.matches > 0 && p.name.toLowerCase().includes(q));
 
-  // Logic to handle Bowling stats where LOWER is BETTER
   const isInverseField = ["bowl_avg", "bowl_econ", "bowl_sr"].includes(sf);
 
   const sorted = [...filtered].sort((a, b) => {
     let va = a[sf];
     let vb = b[sf];
 
-    // Treat null/undefined stats as Infinity so they always go to the bottom
+    // 1. SPECIAL LOGIC FOR NAME SORTING
+    if (sf === "name") {
+      const nameA = String(va || "").trim();
+      const nameB = String(vb || "").trim();
+      
+      // Check if they start with an alphabet (a-z or A-Z)
+      const isAlphaA = /^[a-zA-Z]/.test(nameA);
+      const isAlphaB = /^[a-zA-Z]/.test(nameB);
+
+      // If one is alphabet and other isn't, alphabet always wins (goes to top)
+      if (isAlphaA && !isAlphaB) return -1;
+      if (!isAlphaA && isAlphaB) return 1;
+
+      // If both are same type, use standard alphabetical comparison
+      return sd === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+    }
+
+    // 2. LOGIC FOR NUMERIC STATS
     const vaNone = va === null || va === undefined;
     const vbNone = vb === null || vb === undefined;
 
     if (vaNone && vbNone) return 0;
-    if (vaNone) return 1;  // a goes to bottom
-    if (vbNone) return -1; // b goes to bottom
+    if (vaNone) return 1;  
+    if (vbNone) return -1; 
 
-    // If it's a bowling rate field, we flip the default behavior: 
-    // Usually, we want the lowest average at the top.
     let comparison;
     if (isInverseField) {
-      // Default (desc) for bowling rates should actually show lowest first
       comparison = sd === "asc" ? vb - va : va - vb;
     } else {
-      // Standard fields (Runs, Wickets): Higher is better
       comparison = sd === "asc" ? va - vb : vb - va;
     }
+    
     return comparison;
   });
 
@@ -751,7 +764,7 @@ function renderPlayers(){
 
   if(tab === "batting"){
     tbl = `<div class="tw"><table class="tbl"><thead><tr>
-      <th style="width:40px">#</th>
+      <th style="width:40px">Rank</th>
       ${SH("name","Player",false)}${SH("matches","M")}${SH("bat_innings","Inn")}${SH("bat_notout","NO")}${SH("bat_runs","Runs")}${SH("bat_balls","Balls")}${SH("bat_hs","HS")}${SH("bat_avg","Avg")}${SH("bat_sr","SR")}${SH("bat_4s","4s")}${SH("bat_6s","6s")}
     </tr></thead>
     <tbody>${sorted.map((p, i)=>`<tr>
@@ -775,7 +788,7 @@ function renderPlayers(){
 
   if(tab === "fielding"){
     tbl = `<div class="tw"><table class="tbl"><thead><tr>
-      <th style="width:40px">#</th>
+      <th style="width:40px">Rank</th>
       ${SH("name","Player",false)}${SH("matches","M")}${SH("field_catches","Catches")}${SH("field_runouts","Run Outs")}${SH("field_stumpings","Stumpings")}
     </tr></thead>
     <tbody>${sorted.map((p, i)=>`<tr>
@@ -784,10 +797,21 @@ function renderPlayers(){
     </tbody></table></div>`;
   }
 
+  // Inside renderPlayers()
   return `<div class="page">
     <div class="fb mb4">
-      <div><div class="sec-title">👤 Player Statistics</div><p class="sec-sub">${all.filter(p=>p.matches>0).length} players · click column headers to sort</p></div>
-      <input class="fi" id="psearch" placeholder="🔍 Search player…" value="${esc(S.search)}" oninput="plSearch(this.value)" style="max-width:200px"/>
+      <div>
+        <div class="sec-title">👤 Player Statistics</div>
+        <p class="sec-sub">${all.filter(p=>p.matches>0).length} players</p>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <input class="fi" id="psearch" placeholder="Search player…" 
+              value="${esc(S.search)}" 
+              style="max-width:200px" 
+              autocomplete="off"
+              onkeydown="if(event.key==='Enter') plSearchExec()"/>
+        <button class="btn btn-p btn-orange" onclick="plSearchExec()" style="padding: 0 16px;">Search</button>
+      </div>
     </div>
     <div class="tabs">
       <button class="tab ${tab==="batting"?"active":""}" onclick="plTab('batting')">Batting</button>
@@ -797,10 +821,23 @@ function renderPlayers(){
     <div class="card">${tbl}</div>
   </div>`;
 }
-window.plTab=t=>{S.playTab=t;S.sortField=t==="batting"?"bat_runs":t==="bowling"?"bowl_wkts":"field_catches";S.sortDir="desc";renderMain();};
-window.plSort=f=>{S.sortDir=S.sortField===f?(S.sortDir==="asc"?"desc":"asc"):"desc";S.sortField=f;renderMain();};
-window.plSearch=v=>{S.search=v;renderMain();};
 
+window.plSort = (f) => {
+  if (S.sortField === f) S.sortDir = S.sortDir === "asc" ? "desc" : "asc";
+  else { S.sortField = f; S.sortDir = "desc"; }
+  render(); 
+};
+
+window.plTab = (t) => {
+  S.playTab = t;
+  // Note: We don't reset S.search here so the filter stays active across tabs
+  render();
+};
+window.plSearchExec = () => {
+  const val = document.getElementById("psearch").value;
+  S.search = val;
+  render(); // Now we render everything once
+};
 /* ═══════════════════════════════════════════════════════
    UPLOAD PAGE
 ═══════════════════════════════════════════════════════ */
