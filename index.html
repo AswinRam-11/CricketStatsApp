@@ -154,6 +154,61 @@ h1,h2,h3,h4{font-family:var(--fh);line-height:1.15;letter-spacing:.02em}
 .sn{font-family:var(--fh);font-size:2.3rem;font-weight:700;color:var(--orange);line-height:1;margin-bottom:5px}
 .sl{color:var(--muted);font-size:.77rem;text-transform:uppercase;letter-spacing:.07em}
 
+/* ── Sticky Names ── */
+/* Container for horizontal scrolling */
+.tw {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* Make the table layout fixed-ready */
+.tbl {
+  border-collapse: separate; /* Required for sticky borders to work correctly */
+  border-spacing: 0;
+}
+
+/* Sticky Rank Column (#) */
+.tbl th:nth-child(1),
+.tbl td:nth-child(1) {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--bg2); /* Matches your table row background */
+  box-shadow: 2px 0 5px rgba(0,0,0,0.3); /* Subtle shadow to show depth */
+}
+
+/* Sticky Player Name Column */
+.tbl th:nth-child(2),
+.tbl td:nth-child(2) {
+  position: sticky;
+  left: 40px; /* Offset by the width of the Rank column */
+  z-index: 3;
+  background: var(--bg2);
+  box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+  border-right: 1px solid var(--bg4); /* Vertical separator */
+}
+
+/* Ensure header stays above sticky body cells */
+.tbl thead th:nth-child(1),
+.tbl thead th:nth-child(2) {
+  z-index: 4; 
+  background: var(--bg3); /* Darker header background */
+}
+
+/* Subtle indicator for mobile users that they can scroll */
+@media (max-width: 700px) {
+  .tw::after {
+    content: "Scroll ➔";
+    position: absolute;
+    right: 10px;
+    bottom: 5px;
+    font-size: 10px;
+    color: var(--muted);
+    pointer-events: none;
+    opacity: 0.6;
+  }
+}
+
 /* ── UPLOAD ── */
 .uz{border:2px dashed var(--border);border-radius:14px;padding:58px 32px;text-align:center;cursor:pointer;transition:all .22s}
 .uz:hover,.uz.drag{border-color:var(--orange);background:var(--oDim)}
@@ -657,29 +712,78 @@ window.mdTab=(innIdx,tab)=>{const m=S.matches.find(x=>x.id===S.matchId);if(!m)re
    PLAYERS PAGE
 ═══════════════════════════════════════════════════════ */
 function renderPlayers(){
-  const all=computeStats(S.matches);
-  const tab=S.playTab,sf=S.sortField,sd=S.sortDir,q=S.search.toLowerCase();
-  const filtered=all.filter(p=>p.matches>0&&p.name.toLowerCase().includes(q));
-  const sorted=[...filtered].sort((a,b)=>{const va=a[sf]??-Infinity,vb=b[sf]??-Infinity;return sd==="asc"?va-vb:vb-va;});
-  const SH=(f,l,r=true,c=false)=>`<th class="${r?"r":""} ${c?"c":""} ${sf===f?"sorted":""}" onclick="plSort('${f}')">${l}<span class="sort-icon">${sf===f?(sd==="asc"?"▲":"▼"):"↕"}</span></th>`;
-  let tbl="";
-  if(tab==="batting"){
-    tbl=`<div class="tw"><table class="tbl"><thead><tr>${SH("name","Player",false)}${SH("matches","M")}${SH("bat_innings","Inn")}${SH("bat_notout","NO")}${SH("bat_runs","Runs")}${SH("bat_balls","Balls")}${SH("bat_hs","HS")}${SH("bat_avg","Avg")}${SH("bat_sr","SR")}${SH("bat_4s","4s")}${SH("bat_6s","6s")}</tr></thead>
-    <tbody>${sorted.map(p=>`<tr><td class="tb">${esc(p.name)}</td><td class="r">${p.matches}</td><td class="r">${p.bat_innings}</td><td class="r tm">${p.bat_notout}</td><td class="r to">${p.bat_runs}</td><td class="r">${p.bat_balls}</td><td class="r">${p.bat_hs}${p.bat_hs_no?"*":""}</td><td class="r">${p.bat_avg!=null?p.bat_avg.toFixed(2):"-"}</td><td class="r">${p.bat_sr!=null?p.bat_sr.toFixed(1):"-"}</td><td class="r">${p.bat_4s}</td><td class="r">${p.bat_6s}</td></tr>`).join("")||`<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--muted)">No data</td></tr>`}
+  const all = computeStats(S.matches);
+  const tab = S.playTab, sf = S.sortField, sd = S.sortDir, q = S.search.toLowerCase();
+  
+  const filtered = all.filter(p => p.matches > 0 && p.name.toLowerCase().includes(q));
+
+  // Logic to handle Bowling stats where LOWER is BETTER
+  const isInverseField = ["bowl_avg", "bowl_econ", "bowl_sr"].includes(sf);
+
+  const sorted = [...filtered].sort((a, b) => {
+    let va = a[sf];
+    let vb = b[sf];
+
+    // Treat null/undefined stats as Infinity so they always go to the bottom
+    const vaNone = va === null || va === undefined;
+    const vbNone = vb === null || vb === undefined;
+
+    if (vaNone && vbNone) return 0;
+    if (vaNone) return 1;  // a goes to bottom
+    if (vbNone) return -1; // b goes to bottom
+
+    // If it's a bowling rate field, we flip the default behavior: 
+    // Usually, we want the lowest average at the top.
+    let comparison;
+    if (isInverseField) {
+      // Default (desc) for bowling rates should actually show lowest first
+      comparison = sd === "asc" ? vb - va : va - vb;
+    } else {
+      // Standard fields (Runs, Wickets): Higher is better
+      comparison = sd === "asc" ? va - vb : vb - va;
+    }
+    return comparison;
+  });
+
+  const SH = (f, l, r = true, c = false) => `<th class="${r ? "r" : ""} ${c ? "c" : ""} ${sf === f ? "sorted" : ""}" onclick="plSort('${f}')">${l}<span class="sort-icon">${sf === f ? (sd === "asc" ? "▲" : "▼") : "↕"}</span></th>`;
+  
+  let tbl = "";
+
+  if(tab === "batting"){
+    tbl = `<div class="tw"><table class="tbl"><thead><tr>
+      <th style="width:40px">#</th>
+      ${SH("name","Player",false)}${SH("matches","M")}${SH("bat_innings","Inn")}${SH("bat_notout","NO")}${SH("bat_runs","Runs")}${SH("bat_balls","Balls")}${SH("bat_hs","HS")}${SH("bat_avg","Avg")}${SH("bat_sr","SR")}${SH("bat_4s","4s")}${SH("bat_6s","6s")}
+    </tr></thead>
+    <tbody>${sorted.map((p, i)=>`<tr>
+      <td class="r" style="color:var(--muted);font-size:0.85em">${i + 1}</td>
+      <td class="tb">${esc(p.name)}</td><td class="r">${p.matches}</td><td class="r">${p.bat_innings}</td><td class="r tm">${p.bat_notout}</td><td class="r to">${p.bat_runs}</td><td class="r">${p.bat_balls}</td><td class="r">${p.bat_hs}${p.bat_hs_no?"*":""}</td><td class="r">${p.bat_avg!=null?p.bat_avg.toFixed(2):"-"}</td><td class="r">${p.bat_sr!=null?p.bat_sr.toFixed(1):"-"}</td><td class="r">${p.bat_4s}</td><td class="r">${p.bat_6s}</td></tr>`).join("")||`<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--muted)">No data</td></tr>`}
     </tbody></table></div>`;
   }
-  if(tab==="bowling"){
-    const bp=sorted.filter(p=>p.bowl_balls>0);
-    tbl=`<div class="tw"><table class="tbl"><thead><tr>${SH("name","Player",false)}${SH("matches","M")}<th>Ov</th>${SH("bowl_maidens","M")}${SH("bowl_runs","R")}${SH("bowl_wkts","W")}${SH("bowl_avg","Avg")}${SH("bowl_econ","Econ")}${SH("bowl_sr","SR")}
-    <th class="c"><span class="dt dt-b">b</span></th><th class="c"><span class="dt dt-c">c</span></th><th class="c"><span class="dt dt-lbw">lbw</span></th><th class="c"><span class="dt dt-st">st</span></th><th class="c"><span class="dt dt-hw">hw</span></th></tr></thead>
-    <tbody>${bp.map(p=>`<tr><td class="tb">${esc(p.name)}</td><td class="r">${p.matches}</td><td>${p.bowl_overs}</td><td class="r">${p.bowl_maidens}</td><td class="r">${p.bowl_runs}</td><td class="r to">${p.bowl_wkts}</td><td class="r">${p.bowl_avg!=null?p.bowl_avg.toFixed(2):"-"}</td><td class="r">${p.bowl_econ!=null?p.bowl_econ.toFixed(2):"-"}</td><td class="r">${p.bowl_sr!=null?p.bowl_sr.toFixed(1):"-"}</td><td class="c">${p.wkt_types.bowled||0}</td><td class="c">${p.wkt_types.caught||0}</td><td class="c">${p.wkt_types.lbw||0}</td><td class="c">${p.wkt_types.stumped||0}</td><td class="c">${p.wkt_types.hit_wicket||0}</td></tr>`).join("")||`<tr><td colspan="14" style="text-align:center;padding:24px;color:var(--muted)">No bowling data</td></tr>`}
+
+  if(tab === "bowling"){
+    const bp = sorted.filter(p => p.bowl_balls > 0);
+    tbl = `<div class="tw"><table class="tbl"><thead><tr>
+      <th style="width:40px">Rank</th>
+      ${SH("name","Player",false)}${SH("matches","M")}<th>Ov</th>${SH("bowl_maidens","M")}${SH("bowl_runs","R")}${SH("bowl_wkts","W")}${SH("bowl_avg","Avg")}${SH("bowl_econ","Econ")}${SH("bowl_sr","SR")}
+      <th class="c"><span class="dt dt-b">b</span></th><th class="c"><span class="dt dt-c">c</span></th><th class="c"><span class="dt dt-lbw">lbw</span></th><th class="c"><span class="dt dt-st">st</span></th><th class="c"><span class="dt dt-hw">hw</span></th>
+    </tr></thead>
+    <tbody>${bp.map((p, i)=>`<tr>
+      <td class="r" style="color:var(--muted);font-size:0.85em">${i + 1}</td>
+      <td class="tb">${esc(p.name)}</td><td class="r">${p.matches}</td><td>${p.bowl_overs}</td><td class="r">${p.bowl_maidens}</td><td class="r">${p.bowl_runs}</td><td class="r to">${p.bowl_wkts}</td><td class="r">${p.bowl_avg!=null?p.bowl_avg.toFixed(2):"-"}</td><td class="r">${p.bowl_econ!=null?p.bowl_econ.toFixed(2):"-"}</td><td class="r">${p.bowl_sr!=null?p.bowl_sr.toFixed(1):"-"}</td><td class="c">${p.wkt_types.bowled||0}</td><td class="c">${p.wkt_types.caught||0}</td><td class="c">${p.wkt_types.lbw||0}</td><td class="c">${p.wkt_types.stumped||0}</td><td class="c">${p.wkt_types.hit_wicket||0}</td></tr>`).join("")||`<tr><td colspan="15" style="text-align:center;padding:24px;color:var(--muted)">No bowling data</td></tr>`}
     </tbody></table></div>`;
   }
-  if(tab==="fielding"){
-    tbl=`<div class="tw"><table class="tbl"><thead><tr>${SH("name","Player",false)}${SH("matches","M")}${SH("field_catches","Catches")}${SH("field_runouts","Run Outs")}${SH("field_stumpings","Stumpings")}</tr></thead>
-    <tbody>${sorted.map(p=>`<tr><td class="tb">${esc(p.name)}</td><td class="r">${p.matches}</td><td class="r to">${p.field_catches}</td><td class="r">${p.field_runouts}</td><td class="r">${p.field_stumpings}</td></tr>`).join("")}
+
+  if(tab === "fielding"){
+    tbl = `<div class="tw"><table class="tbl"><thead><tr>
+      <th style="width:40px">#</th>
+      ${SH("name","Player",false)}${SH("matches","M")}${SH("field_catches","Catches")}${SH("field_runouts","Run Outs")}${SH("field_stumpings","Stumpings")}
+    </tr></thead>
+    <tbody>${sorted.map((p, i)=>`<tr>
+      <td class="r" style="color:var(--muted);font-size:0.85em">${i + 1}</td>
+      <td class="tb">${esc(p.name)}</td><td class="r">${p.matches}</td><td class="r to">${p.field_catches}</td><td class="r">${p.field_runouts}</td><td class="r">${p.field_stumpings}</td></tr>`).join("")||`<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No data</td></tr>`}
     </tbody></table></div>`;
   }
+
   return `<div class="page">
     <div class="fb mb4">
       <div><div class="sec-title">👤 Player Statistics</div><p class="sec-sub">${all.filter(p=>p.matches>0).length} players · click column headers to sort</p></div>
