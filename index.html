@@ -835,9 +835,18 @@ window.plSort = (f) => {
 
 window.plTab = (t) => {
   S.playTab = t;
-  // Note: We don't reset S.search here so the filter stays active across tabs
+  // Set default sort field based on the selected tab
+  if (t === "batting") {
+    S.sortField = "bat_runs";
+  } else if (t === "bowling") {
+    S.sortField = "bowl_wkts";
+  } else if (t === "fielding") {
+    S.sortField = "field_catches";
+  }
+  S.sortDir = "desc"; // Always sort by highest value first when switching
   render();
 };
+
 window.plSearchExec = () => {
   const val = document.getElementById("psearch").value;
   S.search = val;
