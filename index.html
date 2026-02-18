@@ -716,52 +716,37 @@ window.mdTab=(innIdx,tab)=>{const m=S.matches.find(x=>x.id===S.matchId);if(!m)re
 /* ═══════════════════════════════════════════════════════
    PLAYERS PAGE
 ═══════════════════════════════════════════════════════ */
-function renderPlayers(){
+function renderPlayers() {
   const all = computeStats(S.matches);
   const tab = S.playTab, sf = S.sortField, sd = S.sortDir, q = S.search.toLowerCase();
-  
-  const filtered = all.filter(p => p.matches > 0 && p.name.toLowerCase().includes(q));
+
+  const filtered = all.filter(p => {
+    const hasMatches = p.matches > 0;
+    const matchesSearch = p.name.toLowerCase().includes(q);
+    const startsWithAlpha = /^[a-zA-Z]/.test(p.name.trim()); 
+    return hasMatches && matchesSearch && startsWithAlpha;
+  });
 
   const isInverseField = ["bowl_avg", "bowl_econ", "bowl_sr"].includes(sf);
 
   const sorted = [...filtered].sort((a, b) => {
-    let va = a[sf];
-    let vb = b[sf];
-
-    // 1. SPECIAL LOGIC FOR NAME SORTING
+    let va = a[sf]; let vb = b[sf];
     if (sf === "name") {
-      const nameA = String(va || "").trim();
-      const nameB = String(vb || "").trim();
-      
-      // Check if they start with an alphabet (a-z or A-Z)
-      const isAlphaA = /^[a-zA-Z]/.test(nameA);
-      const isAlphaB = /^[a-zA-Z]/.test(nameB);
-
-      // If one is alphabet and other isn't, alphabet always wins (goes to top)
+      const nameA = String(va || "").trim(); const nameB = String(vb || "").trim();
+      const isAlphaA = /^[a-zA-Z]/.test(nameA); const isAlphaB = /^[a-zA-Z]/.test(nameB);
       if (isAlphaA && !isAlphaB) return -1;
       if (!isAlphaA && isAlphaB) return 1;
-
-      // If both are same type, use standard alphabetical comparison
       return sd === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
     }
-
-    // 2. LOGIC FOR NUMERIC STATS
     const vaNone = va === null || va === undefined;
     const vbNone = vb === null || vb === undefined;
-
     if (vaNone && vbNone) return 0;
-    if (vaNone) return 1;  
-    if (vbNone) return -1; 
-
-    let comparison;
-    if (isInverseField) {
-      comparison = sd === "asc" ? vb - va : va - vb;
-    } else {
-      comparison = sd === "asc" ? va - vb : vb - va;
-    }
-    
-    return comparison;
+    if (vaNone) return 1; if (vbNone) return -1;
+    return isInverseField ? (sd === "asc" ? vb - va : va - vb) : (sd === "asc" ? va - vb : vb - va);
   });
+
+  // Helper to apply the 'to' class if the field is the sorted field
+  const SC = (f) => sf === f ? "to" : "";
 
   const SH = (f, l, r = true, c = false) => `<th class="${r ? "r" : ""} ${c ? "c" : ""} ${sf === f ? "sorted" : ""}" onclick="plSort('${f}')">${l}<span class="sort-icon">${sf === f ? (sd === "asc" ? "▲" : "▼") : "↕"}</span></th>`;
   
@@ -774,20 +759,48 @@ function renderPlayers(){
     </tr></thead>
     <tbody>${sorted.map((p, i)=>`<tr>
       <td class="r" style="color:var(--muted);font-size:0.85em">${i + 1}</td>
-      <td class="tb">${esc(p.name)}</td><td class="r">${p.matches}</td><td class="r">${p.bat_innings}</td><td class="r tm">${p.bat_notout}</td><td class="r to">${p.bat_runs}</td><td class="r">${p.bat_balls}</td><td class="r">${p.bat_hs}${p.bat_hs_no?"*":""}</td><td class="r">${p.bat_avg!=null?p.bat_avg.toFixed(2):"-"}</td><td class="r">${p.bat_sr!=null?p.bat_sr.toFixed(1):"-"}</td><td class="r">${p.bat_4s}</td><td class="r">${p.bat_6s}</td></tr>`).join("")||`<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--muted)">No data</td></tr>`}
-    </tbody></table></div>`;
+      <td class="tb ${SC("name")}">${esc(p.name)}</td>
+      <td class="r ${SC("matches")}">${p.matches}</td>
+      <td class="r ${SC("bat_innings")}">${p.bat_innings}</td>
+      <td class="r tm ${SC("bat_notout")}">${p.bat_notout}</td>
+      <td class="r ${SC("bat_runs")}">${p.bat_runs}</td>
+      <td class="r ${SC("bat_balls")}">${p.bat_balls}</td>
+      <td class="r ${SC("bat_hs")}">${p.bat_hs}${p.bat_hs_no?"*":""}</td>
+      <td class="r ${SC("bat_avg")}">${p.bat_avg!=null?p.bat_avg.toFixed(2):"-"}</td>
+      <td class="r ${SC("bat_sr")}">${p.bat_sr!=null?p.bat_sr.toFixed(1):"-"}</td>
+      <td class="r ${SC("bat_4s")}">${p.bat_4s}</td>
+      <td class="r ${SC("bat_6s")}">${p.bat_6s}</td>
+    </tr>`).join("")}</tbody></table></div>`;
   }
 
-  if(tab === "bowling"){
+ if(tab === "bowling"){
     const bp = sorted.filter(p => p.bowl_balls > 0);
     tbl = `<div class="tw"><table class="tbl"><thead><tr>
       <th style="width:40px">Rank</th>
       ${SH("name","Player",false)}${SH("matches","M")}<th>Ov</th>${SH("bowl_maidens","M")}${SH("bowl_runs","R")}${SH("bowl_wkts","W")}${SH("bowl_avg","Avg")}${SH("bowl_econ","Econ")}${SH("bowl_sr","SR")}
-      <th class="c"><span class="dt dt-b">b</span></th><th class="c"><span class="dt dt-c">c</span></th><th class="c"><span class="dt dt-lbw">lbw</span></th><th class="c"><span class="dt dt-st">st</span></th><th class="c"><span class="dt dt-hw">hw</span></th>
+      <th class="c"><span class="dt dt-b">b</span></th>
+      <th class="c"><span class="dt dt-c">c</span></th>
+      <th class="c"><span class="dt dt-lbw">lbw</span></th>
+      <th class="c"><span class="dt dt-st">st</span></th>
+      <th class="c"><span class="dt dt-hw">hw</span></th>
     </tr></thead>
     <tbody>${bp.map((p, i)=>`<tr>
       <td class="r" style="color:var(--muted);font-size:0.85em">${i + 1}</td>
-      <td class="tb">${esc(p.name)}</td><td class="r">${p.matches}</td><td>${p.bowl_overs}</td><td class="r">${p.bowl_maidens}</td><td class="r">${p.bowl_runs}</td><td class="r to">${p.bowl_wkts}</td><td class="r">${p.bowl_avg!=null?p.bowl_avg.toFixed(2):"-"}</td><td class="r">${p.bowl_econ!=null?p.bowl_econ.toFixed(2):"-"}</td><td class="r">${p.bowl_sr!=null?p.bowl_sr.toFixed(1):"-"}</td><td class="c">${p.wkt_types.bowled||0}</td><td class="c">${p.wkt_types.caught||0}</td><td class="c">${p.wkt_types.lbw||0}</td><td class="c">${p.wkt_types.stumped||0}</td><td class="c">${p.wkt_types.hit_wicket||0}</td></tr>`).join("")||`<tr><td colspan="15" style="text-align:center;padding:24px;color:var(--muted)">No bowling data</td></tr>`}
+      <td class="tb ${SC("name")}">${esc(p.name)}</td>
+      <td class="r ${SC("matches")}">${p.matches}</td>
+      <td class="r">${p.bowl_overs}</td>
+      <td class="r ${SC("bowl_maidens")}">${p.bowl_maidens}</td>
+      <td class="r ${SC("bowl_runs")}">${p.bowl_runs}</td>
+      <td class="r ${SC("bowl_wkts")}">${p.bowl_wkts}</td>
+      <td class="r ${SC("bowl_avg")}">${p.bowl_avg!=null?p.bowl_avg.toFixed(2):"-"}</td>
+      <td class="r ${SC("bowl_econ")}">${p.bowl_econ!=null?p.bowl_econ.toFixed(2):"-"}</td>
+      <td class="r ${SC("bowl_sr")}">${p.bowl_sr!=null?p.bowl_sr.toFixed(1):"-"}</td>
+      <td class="c">${p.wkt_types.bowled||0}</td>
+      <td class="c">${p.wkt_types.caught||0}</td>
+      <td class="c">${p.wkt_types.lbw||0}</td>
+      <td class="c">${p.wkt_types.stumped||0}</td>
+      <td class="c">${p.wkt_types.hit_wicket||0}</td>
+    </tr>`).join("")||`<tr><td colspan="15" style="text-align:center;padding:24px;color:var(--muted)">No bowling data</td></tr>`}
     </tbody></table></div>`;
   }
 
@@ -798,23 +811,19 @@ function renderPlayers(){
     </tr></thead>
     <tbody>${sorted.map((p, i)=>`<tr>
       <td class="r" style="color:var(--muted);font-size:0.85em">${i + 1}</td>
-      <td class="tb">${esc(p.name)}</td><td class="r">${p.matches}</td><td class="r to">${p.field_catches}</td><td class="r">${p.field_runouts}</td><td class="r">${p.field_stumpings}</td></tr>`).join("")||`<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No data</td></tr>`}
-    </tbody></table></div>`;
+      <td class="tb ${SC("name")}">${esc(p.name)}</td>
+      <td class="r ${SC("matches")}">${p.matches}</td>
+      <td class="r ${SC("field_catches")}">${p.field_catches}</td>
+      <td class="r ${SC("field_runouts")}">${p.field_runouts}</td>
+      <td class="r ${SC("field_stumpings")}">${p.field_stumpings}</td>
+    </tr>`).join("")}</tbody></table></div>`;
   }
 
-  // Inside renderPlayers()
   return `<div class="page">
     <div class="fb mb4">
-      <div>
-        <div class="sec-title">👤 Player Statistics</div>
-        <p class="sec-sub">${all.filter(p=>p.matches>0).length} players</p>
-      </div>
+      <div><div class="sec-title">👤 Player Statistics</div><p class="sec-sub">${filtered.length} players</p></div>
       <div style="display:flex; gap:8px;">
-        <input class="fi" id="psearch" placeholder="Search player…" 
-              value="${esc(S.search)}" 
-              style="max-width:200px" 
-              autocomplete="off"
-              onkeydown="if(event.key==='Enter') plSearchExec()"/>
+        <input class="fi" id="psearch" placeholder="Search player…" value="${esc(S.search)}" style="max-width:200px" autocomplete="off" onkeydown="if(event.key==='Enter') plSearchExec()"/>
         <button class="btn btn-p btn-orange" onclick="plSearchExec()" style="padding: 0 16px;">Search</button>
       </div>
     </div>
@@ -826,6 +835,8 @@ function renderPlayers(){
     <div class="card">${tbl}</div>
   </div>`;
 }
+
+
 
 window.plSort = (f) => {
   if (S.sortField === f) S.sortDir = S.sortDir === "asc" ? "desc" : "asc";
