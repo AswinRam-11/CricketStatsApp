@@ -1,0 +1,5 @@
+a new tab to track each player's recent form
+protect admin login's password
+show 5 recent matches in home page
+player comparison
+web graph like fifa stats
