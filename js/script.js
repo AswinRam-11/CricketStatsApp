@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════
    ⚙️  CONFIG
-═══════════════════════════════════════════════════════ */
+═══════════════════════════════════════════════════════ */ 
 const CONFIG = {
   supabaseUrl:  "https://supabase-proxy.aswinram40011.workers.dev/",
   supabaseKey:  "sb_publishable_QDbEbRxszCMK_bRpfKhjmQ_tzFKjXrK",
