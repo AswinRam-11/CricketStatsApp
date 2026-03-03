@@ -8,19 +8,16 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script type="module">
   import Groq from "https://esm.run/groq-sdk";
   window.Groq = Groq;
 </script>
 <link rel="stylesheet" href="css/style.css">
-
 </head>
 <body>
-
 <div class="flare1"></div>
 <div class="flare2"></div>
-
-<!-- NAV -->
 <nav class="nav" id="nav">
   <button class="logo" onclick="nav('home')">
     <span class="logo-icon">🏏</span>
@@ -28,13 +25,10 @@
   </button>
   <div class="nav-links" id="nav-links"></div>
 </nav>
-
 <main id="main"></main>
 <div id="modal-root"></div>
 <div id="toast"></div>
 <input type="file" id="pdf-input" accept=".pdf" style="display:none"/>
-
 <script src="js/script.js"></script>
-
 </body>
 </html>
