@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════
    ⚙️  CONFIG
-═══════════════════════════════════════════════════════ */ 
+═══════════════════════════════════════════════════════ */
 const CONFIG = {
   supabaseUrl:  "https://supabase-proxy.aswinram40011.workers.dev/",
   supabaseKey:  "sb_publishable_QDbEbRxszCMK_bRpfKhjmQ_tzFKjXrK",
@@ -1484,107 +1484,95 @@ function renderCompare() {
   let chartsHtml = "";
   let statTablesHtml = "";
 
-  if (hasBoth) {
-    chartsHtml = `
-      <div class="cmp-charts-grid">
-        <div class="cmp-chart-box">
-          <h3>🏏 Batting</h3>
-          <canvas id="${batRadId}" height="240"></canvas>
-        </div>
-        <div class="cmp-chart-box">
-          <h3>🎳 Bowling</h3>
-          <canvas id="${bowlRadId}" height="240"></canvas>
-        </div>
-        <div class="cmp-chart-box">
-          <h3>🧤 Fielding</h3>
-          <canvas id="${fldRadId}" height="240"></canvas>
-        </div>
-      </div>`;
+if (hasBoth) {
+  const fmt1 = (v, dec=2) => v!=null ? Number(v).toFixed(dec) : "-";
 
-    const fmt1 = (v, dec=2) => v!=null ? Number(v).toFixed(dec) : "-";
-    statTablesHtml = `
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:4px">
-        <div class="cmp-chart-box">
-          <h3>🏏 Batting Stats</h3>
-          <table class="cmp-stat-table">
-            <thead><tr><td class="stat-label"></td><td class="stat-p1">${esc(p1.name.split(' ')[0])}</td><td></td><td class="stat-p2">${esc(p2.name.split(' ')[0])}</td></tr></thead>
-            <tbody>
-              ${statRow("Matches",    p1.matches,       p2.matches)}
-              ${statRow("Innings",    p1.bat_innings,   p2.bat_innings)}
-              ${statRow("Runs",       p1.bat_runs,      p2.bat_runs)}
-              ${statRow("Average",    fmt1(p1.bat_avg), fmt1(p2.bat_avg))}
-              ${statRow("Strike Rate",fmt1(p1.bat_sr,1),fmt1(p2.bat_sr,1))}
-              ${statRow("High Score", p1.bat_hs+(p1.bat_hs_no?"*":""), p2.bat_hs+(p2.bat_hs_no?"*":""))}
-              ${statRow("Fours",      p1.bat_4s,        p2.bat_4s)}
-              ${statRow("Sixes",      p1.bat_6s,        p2.bat_6s)}
-            </tbody>
-          </table>
-        </div>
-        <div class="cmp-chart-box">
-          <h3>🎳 Bowling Stats</h3>
-          <table class="cmp-stat-table">
-            <thead><tr><td class="stat-label"></td><td class="stat-p1">${esc(p1.name.split(' ')[0])}</td><td></td><td class="stat-p2">${esc(p2.name.split(' ')[0])}</td></tr></thead>
-            <tbody>
-              ${statRow("Wickets",   p1.bowl_wkts,               p2.bowl_wkts)}
-              ${statRow("Overs",     p1.bowl_overs,               p2.bowl_overs)}
-              ${statRow("Runs Conceded", p1.bowl_runs,           p2.bowl_runs, false)}
-              ${statRow("Average",   fmt1(p1.bowl_avg),           fmt1(p2.bowl_avg), false)}
-              ${statRow("Economy",   fmt1(p1.bowl_econ),          fmt1(p2.bowl_econ), false)}
-              ${statRow("Strike Rate",fmt1(p1.bowl_sr,1),         fmt1(p2.bowl_sr,1), false)}
-              ${statRow("Maidens",   p1.bowl_maidens,             p2.bowl_maidens)}
-            </tbody>
-          </table>
-        </div>
-        <div class="cmp-chart-box">
-          <h3>🧤 Fielding Stats</h3>
-          <table class="cmp-stat-table">
-            <thead><tr><td class="stat-label"></td><td class="stat-p1">${esc(p1.name.split(' ')[0])}</td><td></td><td class="stat-p2">${esc(p2.name.split(' ')[0])}</td></tr></thead>
-            <tbody>
-              ${statRow("Catches",    p1.field_catches,    p2.field_catches)}
-              ${statRow("Run Outs",   p1.field_runouts,    p2.field_runouts)}
-              ${statRow("Stumpings",  p1.field_stumpings,  p2.field_stumpings)}
-              ${statRow("Total Disml",p1.field_catches+p1.field_runouts+p1.field_stumpings, p2.field_catches+p2.field_runouts+p2.field_stumpings)}
-            </tbody>
-          </table>
-        </div>
-      </div>`;
+  const radarBase = {
+    responsive: true,
+    maintainAspectRatio: true,
+    scales: { r: { min:0, max:100, ticks:{display:false}, grid:{color:'rgba(255,255,255,0.06)'}, angleLines:{color:'rgba(255,255,255,0.08)'}, pointLabels:{color:CHART_DEFAULTS.legend, font:{size:10}} } },
+    plugins: { legend: { labels: { color:CHART_DEFAULTS.legend, font:CHART_DEFAULTS.font, boxWidth:12 } } }
+  };
 
-    // Schedule charts
-    const radarBase = {
-      responsive:true,
-      scales:{ r:{ min:0,max:100, ticks:{display:false}, grid:{color:'rgba(255,255,255,0.06)'}, angleLines:{color:'rgba(255,255,255,0.08)'}, pointLabels:{color:CHART_DEFAULTS.legend, font:{size:10}} } },
-      plugins:{ legend:{ labels:{ color:CHART_DEFAULTS.legend, font:CHART_DEFAULTS.font, boxWidth:12 } } }
-    };
+  const ph = `<thead><tr>
+    <td class="stat-label"></td>
+    <td class="stat-p1">${esc(p1.name.split(' ')[0])}</td>
+    <td></td>
+    <td class="stat-p2">${esc(p2.name.split(' ')[0])}</td>
+  </tr></thead>`;
 
-    scheduleChart(batRadId, {
-      type:'radar',
-      data:{ labels:['Average','Strike Rate','High Score','Runs','Boundary%','Sixes'],
-             datasets:[
-               { label:p1.name, data:getBatRadarData(p1,stats), backgroundColor:'rgba(249,115,22,0.2)', borderColor:'#f97316', borderWidth:2, pointBackgroundColor:'#f97316', pointRadius:3 },
-               { label:p2.name, data:getBatRadarData(p2,stats), backgroundColor:'rgba(56,189,248,0.15)', borderColor:'#38bdf8', borderWidth:2, pointBackgroundColor:'#38bdf8', pointRadius:3 }
-             ]},
-      options:radarBase
-    });
-    scheduleChart(bowlRadId, {
-      type:'radar',
-      data:{ labels:['Wickets','Economy','Average','Strike Rate','Maidens','W/Match'],
-             datasets:[
-               { label:p1.name, data:getBowlRadarData(p1,stats), backgroundColor:'rgba(249,115,22,0.2)', borderColor:'#f97316', borderWidth:2, pointBackgroundColor:'#f97316', pointRadius:3 },
-               { label:p2.name, data:getBowlRadarData(p2,stats), backgroundColor:'rgba(56,189,248,0.15)', borderColor:'#38bdf8', borderWidth:2, pointBackgroundColor:'#38bdf8', pointRadius:3 }
-             ]},
-      options:radarBase
-    });
-    scheduleChart(fldRadId, {
-      type:'radar',
-      data:{ labels:['Catches','Run Outs','Stumpings','Disml/Match','Total'],
-             datasets:[
-               { label:p1.name, data:getFieldRadarData(p1,stats), backgroundColor:'rgba(249,115,22,0.2)', borderColor:'#f97316', borderWidth:2, pointBackgroundColor:'#f97316', pointRadius:3 },
-               { label:p2.name, data:getFieldRadarData(p2,stats), backgroundColor:'rgba(56,189,248,0.15)', borderColor:'#38bdf8', borderWidth:2, pointBackgroundColor:'#38bdf8', pointRadius:3 }
-             ]},
-      options:radarBase
-    });
-    flushCharts();
-  }
+const row = (chartId, chartTitle, statsTitle, statsBody) => `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;align-items:stretch;min-width:0;overflow:hidden">
+    <div class="cmp-chart-box" style="display:flex;flex-direction:column;min-width:0;overflow:hidden">
+      <h3>${chartTitle}</h3>
+      <canvas id="${chartId}"></canvas>
+    </div>
+    <div class="cmp-chart-box" style="display:flex;flex-direction:column;min-width:0;overflow:hidden">
+      <h3>${statsTitle}</h3>
+      <table class="cmp-stat-table">${ph}<tbody>${statsBody}</tbody></table>
+    </div>
+  </div>`;
+
+  chartsHtml =
+    row(batRadId, "🏏 Batting Radar", "🏏 Batting Stats",
+      statRow("Matches",     p1.matches,                          p2.matches)           +
+      statRow("Innings",     p1.bat_innings,                      p2.bat_innings)       +
+      statRow("Runs",        p1.bat_runs,                         p2.bat_runs)          +
+      statRow("Average",     fmt1(p1.bat_avg),                    fmt1(p2.bat_avg))     +
+      statRow("Strike Rate", fmt1(p1.bat_sr,1),                   fmt1(p2.bat_sr,1))   +
+      statRow("High Score",  p1.bat_hs+(p1.bat_hs_no?"*":""),     p2.bat_hs+(p2.bat_hs_no?"*":"")) +
+      statRow("Fours",       p1.bat_4s,                           p2.bat_4s)            +
+      statRow("Sixes",       p1.bat_6s,                           p2.bat_6s)
+    ) +
+    row(bowlRadId, "🎳 Bowling Radar", "🎳 Bowling Stats",
+      statRow("Wickets",       p1.bowl_wkts,              p2.bowl_wkts)               +
+      statRow("Overs",         p1.bowl_overs,             p2.bowl_overs)              +
+      statRow("Runs Conceded", p1.bowl_runs,              p2.bowl_runs,        false)  +
+      statRow("Average",       fmt1(p1.bowl_avg),         fmt1(p2.bowl_avg),   false)  +
+      statRow("Economy",       fmt1(p1.bowl_econ),        fmt1(p2.bowl_econ),  false)  +
+      statRow("Strike Rate",   fmt1(p1.bowl_sr,1),        fmt1(p2.bowl_sr,1),  false)  +
+      statRow("Maidens",       p1.bowl_maidens,           p2.bowl_maidens)
+    ) +
+    row(fldRadId, "🧤 Fielding Radar", "🧤 Fielding Stats",
+      statRow("Catches",    p1.field_catches,    p2.field_catches)   +
+      statRow("Run Outs",   p1.field_runouts,    p2.field_runouts)   +
+      statRow("Stumpings",  p1.field_stumpings,  p2.field_stumpings) +
+      statRow("Total Disml",
+        p1.field_catches+p1.field_runouts+p1.field_stumpings,
+        p2.field_catches+p2.field_runouts+p2.field_stumpings)
+    );
+
+  statTablesHtml = "";
+
+  scheduleChart(batRadId, {
+    type:'radar',
+    data:{ labels:['Average','Strike Rate','High Score','Runs','Boundary%','Sixes'],
+           datasets:[
+             { label:p1.name, data:getBatRadarData(p1,stats), backgroundColor:'rgba(249,115,22,0.2)', borderColor:'#f97316', borderWidth:2, pointBackgroundColor:'#f97316', pointRadius:3 },
+             { label:p2.name, data:getBatRadarData(p2,stats), backgroundColor:'rgba(56,189,248,0.15)', borderColor:'#38bdf8', borderWidth:2, pointBackgroundColor:'#38bdf8', pointRadius:3 }
+           ]},
+    options: radarBase
+  });
+  scheduleChart(bowlRadId, {
+    type:'radar',
+    data:{ labels:['Wickets','Economy','Average','Strike Rate','Maidens','W/Match'],
+           datasets:[
+             { label:p1.name, data:getBowlRadarData(p1,stats), backgroundColor:'rgba(249,115,22,0.2)', borderColor:'#f97316', borderWidth:2, pointBackgroundColor:'#f97316', pointRadius:3 },
+             { label:p2.name, data:getBowlRadarData(p2,stats), backgroundColor:'rgba(56,189,248,0.15)', borderColor:'#38bdf8', borderWidth:2, pointBackgroundColor:'#38bdf8', pointRadius:3 }
+           ]},
+    options: radarBase
+  });
+  scheduleChart(fldRadId, {
+    type:'radar',
+    data:{ labels:['Catches','Run Outs','Stumpings','Disml/Match','Total'],
+           datasets:[
+             { label:p1.name, data:getFieldRadarData(p1,stats), backgroundColor:'rgba(249,115,22,0.2)', borderColor:'#f97316', borderWidth:2, pointBackgroundColor:'#f97316', pointRadius:3 },
+             { label:p2.name, data:getFieldRadarData(p2,stats), backgroundColor:'rgba(56,189,248,0.15)', borderColor:'#38bdf8', borderWidth:2, pointBackgroundColor:'#38bdf8', pointRadius:3 }
+           ]},
+    options: radarBase
+  });
+  flushCharts();
+}
 
   return `<div class="page">
     <div class="sec-title">⚖️ Player Comparison</div>
@@ -1609,7 +1597,6 @@ function renderCompare() {
 
     ${!hasBoth ? `<div class="cmp-no-player"><div style="font-size:2.5rem">⚖️</div><div>Select two players above to see the comparison</div></div>` : ""}
     ${chartsHtml}
-    ${statTablesHtml}
   </div>`;
 }
 
