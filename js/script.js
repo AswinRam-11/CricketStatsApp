@@ -4,7 +4,7 @@
    (See README.md for step-by-step setup instructions)
 ═══════════════════════════════════════════════════════ */
 const CONFIG = {
-  supabaseUrl:  "https://jeanvxfyqztuiyeqtyzh.supabase.co",
+  supabaseUrl:  "https://supabase-proxy.aswinram40011.workers.dev/",
   supabaseKey:  "sb_publishable_QDbEbRxszCMK_bRpfKhjmQ_tzFKjXrK",
   adminPass:    "cricket1982"
 };
