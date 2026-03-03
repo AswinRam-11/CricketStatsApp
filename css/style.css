@@ -484,3 +484,9 @@ input,button,select,textarea{font-family:inherit;font-size:inherit}
 .edit-in.r {
   text-align: right;
 }
+
+@media (max-width: 600px) {
+  .cmp-stat-table { font-size: 0.68rem; }
+  .cmp-stat-table td { padding: 4px 4px; }
+  .cmp-chart-box h3 { font-size: 0.72rem; }
+}
